@@ -8,8 +8,8 @@ This library integrates Rama with external [Apache Kafka](https://kafka.apache.o
 
 ```
 <repository>
-  <id>rpl-releases</id>
-  <url>https://nexus.redplanetlabs.com/repository/maven-releases</url>
+  <id>nexus-releases</id>
+  <url>https://nexus.redplanetlabs.com/repository/maven-public-releases</url>
 </repository>
 ```
 
