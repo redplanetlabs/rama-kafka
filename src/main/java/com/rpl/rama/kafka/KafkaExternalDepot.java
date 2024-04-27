@@ -20,6 +20,7 @@ public class KafkaExternalDepot implements ExternalDepot {
   Map<String, Object> _kafkaConfig;
   String _topic;
   long _pollTimeoutMillis;
+  Integer _numPartitions;
 
   TaskGlobalContext _context;
 
@@ -74,6 +75,11 @@ public class KafkaExternalDepot implements ExternalDepot {
     this(kafkaConfig, topic, 2000);
   }
 
+  public KafkaExternalDepot staticNumPartitions(int numPartitions) {
+    _numPartitions = numPartitions;
+    return this;
+  }
+
   private static List consumerIdTuple(Map<String, Object> kafkaConfig, TaskGlobalContext context) {
     int taskThreadId = Collections.min(context.getTaskGroup());
     return Arrays.asList(
@@ -114,8 +120,12 @@ public class KafkaExternalDepot implements ExternalDepot {
 
   @Override
   public CompletableFuture<Integer> getNumPartitions() {
-    return runOnKafkaThread(
-        () -> getConsumer().consumer.partitionsFor(_topic).size());
+    if(_numPartitions!=null) {
+      return CompletableFuture.completedFuture(_numPartitions);
+    } else {
+      return runOnKafkaThread(
+          () -> getConsumer().consumer.partitionsFor(_topic).size());
+    }
   }
 
   @Override
