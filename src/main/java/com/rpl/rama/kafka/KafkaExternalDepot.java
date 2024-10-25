@@ -72,7 +72,7 @@ public class KafkaExternalDepot implements ExternalDepot {
   }
 
   public KafkaExternalDepot(Map<String, Object> kafkaConfig, String topic) {
-    this(kafkaConfig, topic, 2000);
+    this(kafkaConfig, topic, 15000);
   }
 
   public KafkaExternalDepot staticNumPartitions(int numPartitions) {
@@ -202,7 +202,7 @@ public class KafkaExternalDepot implements ExternalDepot {
                 startOffset + startSize,
                 endOffset);
             if (ret.size() == startSize) {
-              throw new RuntimeException("Failed to fetch from Kafka within timeout");
+              throw new RuntimeException("Failed to fetch from Kafka within timeout of " + _pollTimeoutMillis + "ms");
             }
           }
           // this shouldn't be possible
