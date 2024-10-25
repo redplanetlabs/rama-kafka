@@ -72,7 +72,7 @@ public class KafkaExternalDepot implements ExternalDepot {
   }
 
   public KafkaExternalDepot(Map<String, Object> kafkaConfig, String topic) {
-    this(kafkaConfig, topic, 15000);
+    this(kafkaConfig, topic, 2000);
   }
 
   public KafkaExternalDepot staticNumPartitions(int numPartitions) {
