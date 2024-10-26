@@ -202,7 +202,7 @@ public class KafkaExternalDepot implements ExternalDepot {
                 startOffset + startSize,
                 endOffset);
             if (ret.size() == startSize) {
-              throw new RuntimeException("Failed to fetch from Kafka within timeout of " + _pollTimeoutMillis + "ms");
+              throw new RuntimeException("Failed to fetch from Kafka within timeout of " + _pollTimeoutMillis + "ms, fetched " + startSize + " records total, target size " + targetSize + ", start offset " + startOffset + ", end offset " + endOffset);
             }
           }
           // this shouldn't be possible
