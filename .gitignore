@@ -28,3 +28,5 @@ hs_err_pid*
 
 kafka*.tgz
 kafka_2.13-*/
+/.apt_generated/
+/.apt_generated_tests/

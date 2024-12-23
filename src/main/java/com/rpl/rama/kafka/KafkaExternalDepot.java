@@ -202,7 +202,11 @@ public class KafkaExternalDepot implements ExternalDepot {
                 startOffset + startSize,
                 endOffset);
             if (ret.size() == startSize) {
-              throw new RuntimeException("Failed to fetch from Kafka within timeout of " + _pollTimeoutMillis + "ms, fetched " + startSize + " records total, target size " + targetSize + ", start offset " + startOffset + ", end offset " + endOffset + ", topic " + _topic + ", partition index " + partitionIndex);
+              TopicPartition tp = new TopicPartition(_topic, partitionIndex);
+              Long actualStartoffset = (Long) getConsumer().consumer
+                                                           .beginningOffsets(Collections.singletonList(tp))
+                                                           .get(tp);
+              throw new RuntimeException("Failed to fetch from Kafka within timeout of " + _pollTimeoutMillis + "ms, fetched " + startSize + " records total, target size " + targetSize + ", start offset " + startOffset + ", end offset " + endOffset + ", topic " + _topic + ", partition index " + partitionIndex + ", actual start offset " + actualStartoffset);
             }
           }
           // this shouldn't be possible
