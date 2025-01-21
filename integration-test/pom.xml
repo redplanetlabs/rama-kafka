@@ -24,7 +24,7 @@
         <dependency>
             <groupId>com.rpl</groupId>
             <artifactId>rama</artifactId>
-            <version>0.12.1</version>
+            <version>0.22.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.kafka</groupId>

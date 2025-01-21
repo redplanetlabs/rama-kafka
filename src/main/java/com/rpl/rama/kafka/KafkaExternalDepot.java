@@ -14,19 +14,20 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.common.TopicPartition;
 
 public class KafkaExternalDepot implements ExternalDepot {
-  TaskThreadManagedResource<KafkaConsumerResources> _consumer;
+  static ConcurrentHashMap<List, KafkaConsumerResources> CONSUMERS = new ConcurrentHashMap();
   WorkerManagedResource<KafkaProducer> _producer;
 
   Map<String, Object> _kafkaConfig;
   String _topic;
   long _pollTimeoutMillis;
   Integer _numPartitions;
-
-  TaskGlobalContext _context;
+  List _consumerId;
+  KafkaConsumerResources _consumer;
 
   private static class KafkaConsumerResources implements Closeable {
     public ExecutorService executorService;
     public KafkaConsumer consumer;
+    int count = 1;
 
     public KafkaConsumerResources(Map<String, Object> kafkaConfig) {
       Map<String, Object> c = new HashMap<>();
@@ -47,7 +48,7 @@ public class KafkaExternalDepot implements ExternalDepot {
 
   private CompletableFuture runOnKafkaThread(RamaFunction0 fn) {
     final CompletableFuture ret = new CompletableFuture();
-    getConsumer().executorService.submit(() -> {
+    _consumer.executorService.submit(() -> {
       try {
         ret.complete(fn.invoke());
       } catch (Throwable t) {
@@ -83,15 +84,7 @@ public class KafkaExternalDepot implements ExternalDepot {
   private static List consumerIdTuple(Map<String, Object> kafkaConfig, TaskGlobalContext context) {
     int taskThreadId = Collections.min(context.getTaskGroup());
     return Arrays.asList(
-        context.getModuleInstanceInfo().getModuleInstanceId(),
         taskThreadId,
-        kafkaConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-  }
-
-  private static List producerIdTuple(Map<String, Object> kafkaConfig, TaskGlobalContext context) {
-    int taskThreadId = Collections.min(context.getTaskGroup());
-    return Arrays.asList(
-        context.getModuleInstanceInfo().getModuleInstanceId(),
         kafkaConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
   }
 
@@ -99,22 +92,30 @@ public class KafkaExternalDepot implements ExternalDepot {
     return _producer.getResource();
   }
 
-  public KafkaConsumerResources getConsumer() {
-    return _consumer.getResource();
-  }
-
   @Override
   public void prepareForTask(int taskId, TaskGlobalContext context) {
-    _context = context;
-    _consumer = new TaskThreadManagedResource("consumer", context, () -> {
-      return new KafkaConsumerResources(_kafkaConfig);
-    });
+    _consumerId = consumerIdTuple(_kafkaConfig, context);
+    synchronized(CONSUMERS) {
+      if(CONSUMERS.contains(_consumerId)) {
+        _consumer = CONSUMERS.get(_consumerId);
+        _consumer.count++;
+      } else {
+        _consumer = new KafkaConsumerResources(_kafkaConfig);
+        CONSUMERS.put(_consumerId, _consumer);
+      }
+    }
     _producer = new WorkerManagedResource("producer", context, () -> new KafkaProducer(_kafkaConfig));
   }
 
   @Override
   public void close() throws IOException {
-    _consumer.close();
+    synchronized(CONSUMERS) {
+      _consumer.count--;
+      if(_consumer.count==0) {
+        _consumer.close();
+        CONSUMERS.remove(_consumerId);
+      }
+    }
     _producer.close();
   }
 
@@ -124,7 +125,7 @@ public class KafkaExternalDepot implements ExternalDepot {
       return CompletableFuture.completedFuture(_numPartitions);
     } else {
       return runOnKafkaThread(
-          () -> getConsumer().consumer.partitionsFor(_topic).size());
+          () -> _consumer.consumer.partitionsFor(_topic).size());
     }
   }
 
@@ -133,7 +134,7 @@ public class KafkaExternalDepot implements ExternalDepot {
     return runOnKafkaThread(
         () -> {
           TopicPartition tp = new TopicPartition(_topic, partitionIndex);
-          return getConsumer().consumer
+          return _consumer.consumer
               .beginningOffsets(Collections.singletonList(tp))
               .get(tp);
         });
@@ -144,7 +145,7 @@ public class KafkaExternalDepot implements ExternalDepot {
     return runOnKafkaThread(
         () -> {
           TopicPartition tp = new TopicPartition(_topic, partitionIndex);
-          return getConsumer().consumer
+          return _consumer.consumer
               .endOffsets(Collections.singletonList(tp))
               .get(tp);
         });
@@ -155,7 +156,7 @@ public class KafkaExternalDepot implements ExternalDepot {
     return runOnKafkaThread(
         () -> {
           TopicPartition tp = new TopicPartition(_topic, partitionIndex);
-          OffsetAndTimestamp ot = (OffsetAndTimestamp) getConsumer().consumer
+          OffsetAndTimestamp ot = (OffsetAndTimestamp) _consumer.consumer
               .offsetsForTimes(Collections.singletonMap(tp, millis))
               .get(tp);
           if (ot != null) {
@@ -195,7 +196,7 @@ public class KafkaExternalDepot implements ExternalDepot {
             int startSize = ret.size();
             fetchInto(
                 ret,
-                getConsumer().consumer,
+                _consumer.consumer,
                 _topic,
                 partitionIndex,
                 _pollTimeoutMillis,
@@ -203,7 +204,7 @@ public class KafkaExternalDepot implements ExternalDepot {
                 endOffset);
             if (ret.size() == startSize) {
               TopicPartition tp = new TopicPartition(_topic, partitionIndex);
-              Long actualStartoffset = (Long) getConsumer().consumer
+              Long actualStartoffset = (Long) _consumer.consumer
                                                            .beginningOffsets(Collections.singletonList(tp))
                                                            .get(tp);
               throw new RuntimeException("Failed to fetch from Kafka within timeout of " + _pollTimeoutMillis + "ms, fetched " + startSize + " records total, target size " + targetSize + ", start offset " + startOffset + ", end offset " + endOffset + ", topic " + _topic + ", partition index " + partitionIndex + ", actual start offset " + actualStartoffset);
@@ -226,7 +227,7 @@ public class KafkaExternalDepot implements ExternalDepot {
           List ret = new ArrayList();
           fetchInto(
               ret,
-              getConsumer().consumer,
+              _consumer.consumer,
               _topic,
               partitionIndex,
               _pollTimeoutMillis,
