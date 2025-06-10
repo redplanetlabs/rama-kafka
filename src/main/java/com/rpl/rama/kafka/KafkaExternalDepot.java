@@ -59,9 +59,11 @@ public class KafkaExternalDepot implements ExternalDepot {
 
   public KafkaExternalDepot(Map<String, Object> kafkaConfig, String topic, long pollTimeoutMillis) {
     if (kafkaConfig.containsKey(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG) ||
-        kafkaConfig.containsKey(ConsumerConfig.GROUP_ID_CONFIG)) {
+        kafkaConfig.containsKey(ConsumerConfig.GROUP_ID_CONFIG) ||
+        kafkaConfig.containsKey(ConsumerConfig.CLIENT_ID_CONFIG)
+        ) {
       throw new RuntimeException(
-          "KafkaExternalDepot config cannot contain enable.auto.commit or group.id " + kafkaConfig);
+          "KafkaExternalDepot config cannot contain enable.auto.commit, group.id, or client.id " + kafkaConfig);
     }
     if (!kafkaConfig.containsKey(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)) {
       throw new RuntimeException("KafkaExternalDepot config must contain boostrap.servers");
