@@ -19,7 +19,7 @@ The latest release is:
 <dependency>
   <groupId>com.rpl</groupId>
   <artifactId>rama-kafka</artifactId>
-  <version>0.9.0</version>
+  <version>0.14.0</version>
 </dependency>
 ```
 
