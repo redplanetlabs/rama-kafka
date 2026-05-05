@@ -82,21 +82,6 @@ public class KafkaExternalDepot implements ExternalDepot {
     return this;
   }
 
-  private static List consumerIdTuple(Map<String, Object> kafkaConfig, TaskGlobalContext context) {
-    int taskThreadId = Collections.min(context.getTaskGroup());
-    return Arrays.asList(
-        context.getModuleInstanceInfo().getModuleInstanceId(),
-        taskThreadId,
-        kafkaConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-  }
-
-  private static List producerIdTuple(Map<String, Object> kafkaConfig, TaskGlobalContext context) {
-    int taskThreadId = Collections.min(context.getTaskGroup());
-    return Arrays.asList(
-        context.getModuleInstanceInfo().getModuleInstanceId(),
-        kafkaConfig.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG));
-  }
-
   public KafkaProducer getProducer() {
     return _producer.getResource();
   }
